@@ -1,0 +1,6 @@
+requires hashie 3.4.X and breaks on 3.5.X
+`gem install hashie -v 3.4.6`
+
+get discogs user access token from https://www.discogs.com/settings/developers
+
+get a cse key from google at https://cse.google.com/cse/all

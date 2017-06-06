@@ -1,0 +1,10 @@
+service_account_email: your gmail address
+key: google search key
+discogs_key: consumer key
+discogs_secret: consumer secret
+profileID: google profile id
+application_name: your-app-name
+application_version: 1.0
+wiki_cse: google search cse for wikipedia
+yt_cse: google search cse for youtube
+downloads_dir: '~/Downloads/id3matic/'
