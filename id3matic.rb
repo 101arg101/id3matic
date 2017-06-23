@@ -56,7 +56,7 @@ end
 
 # Makes options from arguments
 $tags = [:artist, :album, :song, :comment, :desc, :year, :track, :total, :genre]
-Options = Struct.new(:link, :yt_title, :file, *$tags)
+Options = Struct.new(:link, :yt_title, :file, :quiet, *$tags)
 
 class Parser
   def self.parse(options)
@@ -91,6 +91,9 @@ class Parser
       end
       opts.on("-gSHORT", "--genre=SHORT", "Set the genre") do |n|
         args.genre = n
+      end
+      opts.on("-q", "--quiet", "Grabs the first song. No questions asked") do
+        args.quiet = true
       end
       opts.on("-h", "--help", "Prints this help") do
         puts opts
@@ -193,9 +196,9 @@ def query_yt (query)
   JSON.parse result.response.body
 end
 
-def get_yt_info (query)
+def get_yt_info (query, opts)
   yt_response = query_yt query
-  
+  puts yt_response.inspect
   yt_response['items'].select! do |item|
     item['pagemap']['videoobject'] and # if yt page has a video
     item['pagemap']['videoobject'].size == 1 and # if yt page isn't a playlist
@@ -204,10 +207,12 @@ def get_yt_info (query)
   
   yt_results = ResultSet.new :yt_json_template, yt_response['items']
   
-  puts 'Does this file look good to you?'
-  
-  yt_results.h
-  yt_results.choosing
+  unless opts.quiet then
+    puts 'Does this file look good to you?'
+    
+    yt_results.h
+    yt_results.choosing
+  end
   
   return yt_results.get_result['pagemap']['videoobject'][0]
 end
@@ -254,7 +259,7 @@ end
 # ----------------------------------------------------------------------------
 
 def init (*args)
-  song = Parser.parse args
+  song = Parser.parse ARGV
   arg_sentence = args.join(' ') # input from user turned into a single string
   
   # where do I get the song/vid data? locally, with a specific link, or do I search for it?
@@ -264,9 +269,13 @@ def init (*args)
   elsif arg_sentence.start_with? 'http'
     song.yt_title = `youtube-dl --get-title #{ arg_sentence }`
     song.link = arg_sentence
+  elsif song.quiet
+    top_result = get_yt_info(arg_sentence, song)
+    song.yt_title = top_result['name']
+    song.link = top_result['url']
   else # query for video on yt
     puts "Querying yt for \"#{ arg_sentence }\""
-    top_result = get_yt_info arg_sentence
+    top_result = get_yt_info(arg_sentence, song)
     song.yt_title = top_result['name']
     song.link = top_result['url']
   end
@@ -274,9 +283,9 @@ def init (*args)
   # download the yt video
   unless song.file
     begin
-      # puts "Downloading #{ song.yt_title } from #{ song.link }. Please wait..."
-      puts `youtube-dl -x --prefer-ffmpeg --audio-format "mp3" -o "#{ $config['downloads_dir'] }%(title)s-%(id)s.%(ext)s" #{ song.link }`
-      # puts "Done downloading #{ song.link }"
+      puts "Downloading #{ song.yt_title } from #{ song.link }. Please wait..." unless song.quiet
+      `youtube-dl -x --prefer-ffmpeg --audio-format "mp3" -o "#{ $config['downloads_dir'] }%(title)s-%(id)s.%(ext)s" #{ song.link }`
+      puts "Done downloading #{ song.link }" unless song.quiet
     rescue
       raise 'Cannot determine the URL of the video'
     end
@@ -285,7 +294,6 @@ def init (*args)
   # query wiki for song data
   # http://en.wikipedia.org/w/api.php?format=json&action=query&titles=No_Quarter_(song)&prop=revisions&rvprop=content
   tmp_title = song.yt_title.gsub(/\[([^\]]+)\]/, '').gsub(/\{([^}]+)\}/, '')
-  puts "(commented out in code) Querying wikipedia for \"#{tmp_title}\""
   # top_query = get_wiki_info tmp_title
   
   song
